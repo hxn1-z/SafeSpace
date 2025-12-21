@@ -2,7 +2,16 @@
 
 const nodemailer = require("nodemailer");
 
-const API_BASE = process.env.API_BASE || "http://localhost:5000";
+// Prefer a real public URL for links in emails (Cloudflare URL or your domain).
+// Fallback to API_BASE for older setups.
+function getPublicBaseUrl() {
+  const raw =
+    process.env.PUBLIC_BASE_URL ||
+    process.env.API_BASE ||
+    "http://localhost:5000";
+
+  return String(raw).replace(/\/$/, "");
+}
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -10,13 +19,15 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+    pass: process.env.SMTP_PASS,
+  },
 });
 
 // Email verification
 async function sendVerificationEmail(user, token) {
-  const verifyUrl = `${API_BASE}/api/verify-email?token=${token}`;
+  const base = getPublicBaseUrl();
+  const verifyUrl = `${base}/api/verify-email?token=${encodeURIComponent(token)}`;
+
   const mailOptions = {
     from: process.env.SMTP_USER,
     to: user.email,
@@ -30,14 +41,17 @@ ${verifyUrl}
 
 If you didn't create this account, ignore this email.
 
-Thanks.`
+Thanks.`,
   };
+
   await transporter.sendMail(mailOptions);
 }
 
 // Password reset email
 async function sendResetEmail(email, token) {
-  const resetUrl = `${API_BASE}/reset?token=${token}`;
+  const base = getPublicBaseUrl();
+  const resetUrl = `${base}/reset?token=${encodeURIComponent(token)}`;
+
   const mailOptions = {
     from: process.env.SMTP_USER,
     to: email,
@@ -49,12 +63,13 @@ ${resetUrl}
 
 If you did NOT request this, ignore this email.
 
-This link expires in 15 minutes.`
+This link expires in 15 minutes.`,
   };
+
   await transporter.sendMail(mailOptions);
 }
 
 module.exports = {
   sendVerificationEmail,
-  sendResetEmail
+  sendResetEmail,
 };
